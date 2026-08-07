@@ -1,0 +1,16 @@
+*.iml
+.gradle/
+local.properties
+.idea/
+build/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+
+# Chave de assinatura e respetivas palavras-passe: publicá-las deixaria qualquer
+# pessoa assinar um APK que o Android aceita como atualização desta app.
+*.jks
+*.keystore
+keystore.properties

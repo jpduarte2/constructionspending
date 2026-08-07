@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- telhado -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,26 L90,57 L18,57 Z" />
+
+    <!-- paredes com porta -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M28,60 L80,60 L80,88 L62,88 L62,70 L46,70 L46,88 L28,88 Z" />
+
+    <!-- janela -->
+    <path
+        android:fillColor="#FF0F3D3E"
+        android:pathData="M33,65 L41,65 L41,80 L33,80 Z" />
+    <path
+        android:fillColor="#FF0F3D3E"
+        android:pathData="M67,65 L75,65 L75,80 L67,80 Z" />
+</vector>
