@@ -1,6 +1,8 @@
 package pt.jpduarte.obragastos.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -16,6 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -43,6 +48,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,7 +64,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import pt.jpduarte.obragastos.data.Definicoes
 import pt.jpduarte.obragastos.data.EventoObra
+import pt.jpduarte.obragastos.data.Fotos
 import pt.jpduarte.obragastos.data.data
+import pt.jpduarte.obragastos.data.juntarFotos
+import pt.jpduarte.obragastos.data.listaFotos
 import pt.jpduarte.obragastos.ui.theme.LocalViz
 import java.time.Instant
 import java.time.LocalDate
@@ -79,6 +89,11 @@ fun LivroScreen(vm: ObraViewModel, padding: PaddingValues) {
 
     var aEditar by remember { mutableStateOf<EventoObra?>(null) }
     var novo by remember { mutableStateOf(false) }
+    var verFotos by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
+
+    // Quanto ocupam as fotos — recalculado quando os eventos mudam.
+    val nFotos = eventos.sumOf { it.listaFotos.size }
+    val espaco by produceState(0L, eventos) { value = vm.espacoFotos() }
 
     Scaffold(
         modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
@@ -136,6 +151,16 @@ fun LivroScreen(vm: ObraViewModel, padding: PaddingValues) {
                     bottom = 96.dp,
                 ),
             ) {
+                if (nFotos > 0) {
+                    item(key = "espaco") {
+                        Text(
+                            "${plural(nFotos, "foto", "fotos")} · ${Fotos.tamanhoTexto(espaco)}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+                        )
+                    }
+                }
                 itemsIndexed(eventos, key = { _, e -> e.id }) { i, e ->
                     LinhaEvento(
                         evento = e,
@@ -144,6 +169,7 @@ fun LivroScreen(vm: ObraViewModel, padding: PaddingValues) {
                         onClick = { aEditar = e },
                         onSubir = { vm.mover(e, -1) },
                         onDescer = { vm.mover(e, +1) },
+                        onVerFoto = { j -> verFotos = e.listaFotos to j },
                     )
                 }
             }
@@ -152,8 +178,9 @@ fun LivroScreen(vm: ObraViewModel, padding: PaddingValues) {
 
     if (novo) {
         DialogoEvento(
+            vm = vm,
             evento = null,
-            onGuardar = { vm.guardar(it); novo = false },
+            onGuardar = { ev, retiradas -> vm.guardar(ev, retiradas); novo = false },
             onFechar = { novo = false },
             onApagar = null,
         )
@@ -161,11 +188,16 @@ fun LivroScreen(vm: ObraViewModel, padding: PaddingValues) {
 
     aEditar?.let { e ->
         DialogoEvento(
+            vm = vm,
             evento = e,
-            onGuardar = { vm.guardar(it); aEditar = null },
+            onGuardar = { ev, retiradas -> vm.guardar(ev, retiradas); aEditar = null },
             onFechar = { aEditar = null },
             onApagar = { vm.apagar(e); aEditar = null },
         )
+    }
+
+    verFotos?.let { (nomes, i) ->
+        VisualizadorFotos(nomes, i, onFechar = { verFotos = null })
     }
 }
 
@@ -225,6 +257,7 @@ private fun LinhaEvento(
     onClick: () -> Unit,
     onSubir: () -> Unit,
     onDescer: () -> Unit,
+    onVerFoto: (Int) -> Unit,
 ) {
     val viz = LocalViz.current
     val corPonto = viz.magnitude
@@ -282,6 +315,31 @@ private fun LinhaEvento(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            val fotos = evento.listaFotos
+            if (fotos.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                // Até quatro miniaturas; a quarta diz quantas mais há.
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    fotos.take(MINIATURAS).forEachIndexed { j, nome ->
+                        val resto = fotos.size - MINIATURAS
+                        Box(contentAlignment = Alignment.Center) {
+                            Miniatura(nome, 56.dp, onClick = { onVerFoto(j) })
+                            if (j == MINIATURAS - 1 && resto > 0) {
+                                Box(
+                                    Modifier
+                                        .size(56.dp)
+                                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                                        .background(Color.Black.copy(alpha = 0.5f))
+                                        .clickable { onVerFoto(j) },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text("+$resto", color = Color.White, style = MaterialTheme.typography.titleSmall)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         Column(Modifier.padding(top = 4.dp)) {
@@ -303,11 +361,14 @@ private fun LinhaEvento(
     }
 }
 
+private const val MINIATURAS = 4
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DialogoEvento(
+    vm: ObraViewModel,
     evento: EventoObra?,
-    onGuardar: (EventoObra) -> Unit,
+    onGuardar: (EventoObra, retiradas: List<String>) -> Unit,
     onFechar: () -> Unit,
     onApagar: (() -> Unit)?,
 ) {
@@ -317,11 +378,22 @@ private fun DialogoEvento(
     var mostrarCalendario by remember { mutableStateOf(false) }
     var confirmarApagar by remember { mutableStateOf(false) }
 
+    // As fotos juntadas aqui já estão gravadas em disco; se o diálogo for
+    // cancelado apagam-se. As retiradas só se apagam ao guardar.
+    val fotos = remember { mutableStateListOf<String>().apply { addAll(evento?.listaFotos.orEmpty()) } }
+    val novas = remember { mutableStateListOf<String>() }
+    val retiradas = remember { mutableStateListOf<String>() }
+    var verFoto by remember { mutableStateOf<Int?>(null) }
+    val cancelar = {
+        vm.descartarFotos(novas.toList())
+        onFechar()
+    }
+
     AlertDialog(
-        onDismissRequest = onFechar,
+        onDismissRequest = cancelar,
         title = { Text(if (evento == null) "Novo evento" else "Editar evento") },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = dia.texto(),
                     onValueChange = {},
@@ -350,6 +422,20 @@ private fun DialogoEvento(
                     minLines = 2,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Fotos",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                EditorFotos(
+                    vm = vm,
+                    fotos = fotos,
+                    aoJuntar = { fotos += it; novas += it },
+                    aoRetirar = { fotos -= it; retiradas += it },
+                    aoVer = { verFoto = it },
+                )
             }
         },
         confirmButton = {
@@ -364,7 +450,9 @@ private fun DialogoEvento(
                             descricao = descricao.trim(),
                             // Num evento existente mantemos a posição que tem.
                             ordem = evento?.ordem ?: 0,
+                            fotos = juntarFotos(fotos),
                         ),
+                        retiradas.toList(),
                     )
                 },
             ) { Text("Guardar") }
@@ -380,10 +468,12 @@ private fun DialogoEvento(
                         )
                     }
                 }
-                TextButton(onClick = onFechar) { Text("Cancelar") }
+                TextButton(onClick = cancelar) { Text("Cancelar") }
             }
         },
     )
+
+    verFoto?.let { i -> VisualizadorFotos(fotos.toList(), i, onFechar = { verFoto = null }) }
 
     if (mostrarCalendario) {
         val estado = rememberDatePickerState(
@@ -409,7 +499,12 @@ private fun DialogoEvento(
         AlertDialog(
             onDismissRequest = { confirmarApagar = false },
             title = { Text("Eliminar evento?") },
-            text = { Text("Esta ação não pode ser desfeita.") },
+            text = {
+                Text(
+                    if (fotos.isEmpty()) "Esta ação não pode ser desfeita."
+                    else "As fotos do evento também são apagadas. Esta ação não pode ser desfeita.",
+                )
+            },
             confirmButton = {
                 TextButton(onClick = { confirmarApagar = false; onApagar() }) {
                     Text("Eliminar", color = MaterialTheme.colorScheme.error)

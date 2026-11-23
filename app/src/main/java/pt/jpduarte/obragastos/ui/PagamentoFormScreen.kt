@@ -49,9 +49,17 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import pt.jpduarte.obragastos.data.ORIGEM_BANCARIO
+import pt.jpduarte.obragastos.data.ORIGEM_PESSOAL
 import pt.jpduarte.obragastos.data.Pagamento
 import pt.jpduarte.obragastos.data.TAXA_IVA_NORMAL
+import pt.jpduarte.obragastos.data.baseTributavel
+import pt.jpduarte.obragastos.data.centimos
 import pt.jpduarte.obragastos.data.ivaParcial
+import pt.jpduarte.obragastos.data.ivaPoupado
+import pt.jpduarte.obragastos.data.totalPago
+import pt.jpduarte.obragastos.data.valorBase
+import pt.jpduarte.obragastos.data.valorIva
 import pt.jpduarte.obragastos.ui.theme.LocalViz
 import java.time.Instant
 import java.time.LocalDate
@@ -68,6 +76,7 @@ fun PagamentoFormScreen(
     onSair: () -> Unit,
 ) {
     val categorias by vm.categorias.collectAsState()
+    val todos by vm.pagamentos.collectAsState()
     val original = remember(pagamentoId) { vm.pagamentoDe(pagamentoId) }
     val aEditar = original != null
 
@@ -90,6 +99,14 @@ fun PagamentoFormScreen(
     var ivaPago by remember { mutableStateOf(original?.ivaPago ?: true) }
     var contaParaObra by remember { mutableStateOf(original?.contaParaObra ?: true) }
     var notas by remember { mutableStateOf(original?.notas ?: "") }
+    var fornecedor by remember { mutableStateOf(original?.fornecedor ?: "") }
+    var origemFundos by remember { mutableStateOf(original?.origemFundos ?: ORIGEM_PESSOAL) }
+    // Os fornecedores já usados, do mais frequente para o menos, para não ter
+    // de escrever o mesmo nome (e com grafias diferentes) fatura após fatura.
+    val fornecedoresUsados = remember(todos) {
+        todos.map { it.fornecedor.trim() }.filter { it.isNotEmpty() }
+            .groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.map { it.key }
+    }
 
     // O IVA pode ter incidido só sobre parte do pagamento.
     var ivaSobreParte by remember { mutableStateOf(original?.ivaParcial ?: false) }
@@ -100,7 +117,6 @@ fun PagamentoFormScreen(
     }
 
     var mostrarCalendario by remember { mutableStateOf(false) }
-    var confirmarApagar by remember { mutableStateOf(false) }
 
     // Se a categoria ainda não foi escolhida, assume a primeira da lista.
     if (categoriaId == 0L && categorias.isNotEmpty()) categoriaId = categorias.first().id
@@ -148,7 +164,8 @@ fun PagamentoFormScreen(
                 },
                 actions = {
                     if (aEditar) {
-                        IconButton(onClick = { confirmarApagar = true }) {
+                        // Sem confirmação: o ecrã dos pagamentos oferece "Desfazer".
+                        IconButton(onClick = { vm.apagar(original!!); onSair() }) {
                             Icon(
                                 Icons.Outlined.Delete,
                                 contentDescription = "Eliminar",
@@ -195,6 +212,29 @@ fun PagamentoFormScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            Spacer(Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = fornecedor,
+                onValueChange = { fornecedor = it },
+                label = { Text("Fornecedor (opcional)") },
+                placeholder = { Text("ex: Construções Silva, Lda.") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            // Sugestões que ainda batem com o que se está a escrever.
+            val sugestoes = fornecedoresUsados
+                .filter { it.contains(fornecedor.trim(), ignoreCase = true) && !it.equals(fornecedor.trim(), ignoreCase = true) }
+                .take(6)
+            if (sugestoes.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    sugestoes.forEach { f ->
+                        FilterChip(selected = false, onClick = { fornecedor = f }, label = { Text(f) })
+                    }
+                }
+            }
 
             Spacer(Modifier.height(12.dp))
 
@@ -248,6 +288,22 @@ fun PagamentoFormScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            Spacer(Modifier.height(20.dp))
+
+            Rotulo("Origem dos fundos")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = origemFundos == ORIGEM_PESSOAL,
+                    onClick = { origemFundos = ORIGEM_PESSOAL },
+                    label = { Text("Pessoal") },
+                )
+                FilterChip(
+                    selected = origemFundos == ORIGEM_BANCARIO,
+                    onClick = { origemFundos = ORIGEM_BANCARIO },
+                    label = { Text("Bancário") },
+                )
+            }
 
             Spacer(Modifier.height(20.dp))
 
@@ -374,10 +430,15 @@ fun PagamentoFormScreen(
             Spacer(Modifier.height(20.dp))
 
             CartaoCalculo(
-                valorBase = valorBase,
-                baseTributavel = baseTributavel,
-                taxa = taxaGuardada,
-                ivaPago = ivaPagoGuardado,
+                Pagamento(
+                    categoriaId = categoriaId,
+                    descricao = "",
+                    dataEpochDay = 0,
+                    valorBaseCent = centimos(valorBase),
+                    baseTributavelCent = centimos(baseTributavel),
+                    taxaIva = taxaGuardada,
+                    ivaPago = ivaPagoGuardado,
+                ),
             )
 
             Spacer(Modifier.height(20.dp))
@@ -400,12 +461,14 @@ fun PagamentoFormScreen(
                             categoriaId = categoriaId,
                             descricao = descricao.trim(),
                             dataEpochDay = dia.toEpochDay(),
-                            valorBase = valorBase,
-                            baseTributavel = baseTributavel,
+                            valorBaseCent = centimos(valorBase),
+                            baseTributavelCent = centimos(baseTributavel),
                             taxaIva = taxaGuardada,
                             ivaPago = ivaPagoGuardado,
                             contaParaObra = contaParaObra,
                             notas = notas.trim(),
+                            fornecedor = fornecedor.trim(),
+                            origemFundos = origemFundos,
                         ),
                     )
                     onSair()
@@ -438,41 +501,26 @@ fun PagamentoFormScreen(
         ) { DatePicker(state = estado) }
     }
 
-    if (confirmarApagar && original != null) {
-        AlertDialog(
-            onDismissRequest = { confirmarApagar = false },
-            title = { Text("Eliminar pagamento?") },
-            text = { Text("Esta ação não pode ser desfeita.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    vm.apagar(original)
-                    confirmarApagar = false
-                    onSair()
-                }) { Text("Eliminar", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmarApagar = false }) { Text("Cancelar") }
-            },
-        )
-    }
 }
 
 /**
  * Mostra a decomposição em tempo real enquanto se escreve: base, IVA, e o que
  * efetivamente sai da conta — mais a poupança, quando o IVA não é pago.
+ *
+ * Recebe o pagamento tal como vai ser gravado e usa as mesmas contas do resto
+ * da app (IVA arredondado ao cêntimo), para o que aqui se lê bater com os totais.
  */
 @Composable
-private fun CartaoCalculo(
-    valorBase: Double,
-    baseTributavel: Double,
-    taxa: Double,
-    ivaPago: Boolean,
-) {
+private fun CartaoCalculo(p: Pagamento) {
     val viz = LocalViz.current
-    val iva = baseTributavel * taxa / 100.0
-    val total = valorBase + if (ivaPago) iva else 0.0
-    val parcial = taxa > 0.0 && baseTributavel < valorBase - 0.005    // Poupa-se o IVA não pago e também o que a parte não tributada teria custado.
-    val poupado = ((valorBase * taxa / 100.0) - if (ivaPago) iva else 0.0).coerceAtLeast(0.0)
+    val valorBase = p.valorBase
+    val baseTributavel = p.baseTributavel
+    val taxa = p.taxaIva
+    val iva = p.valorIva
+    val total = p.totalPago
+    val parcial = p.ivaParcial
+    // Poupa-se o IVA não pago e também o que a parte não tributada teria custado.
+    val poupado = p.ivaPoupado
 
     Card(
         colors = CardDefaults.cardColors(

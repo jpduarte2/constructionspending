@@ -35,6 +35,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -123,14 +124,16 @@ fun CategoriasScreen(vm: ObraViewModel, padding: PaddingValues) {
     }
 
     aEditar?.let { c ->
-        val nPagamentos = gastos.firstOrNull { it.categoria.id == c.id }?.nPagamentos ?: 0
+        // Todos os pagamentos, obra e fora da obra: o CASCADE leva-os a todos.
+        val nPagamentos = gastos.firstOrNull { it.categoria.id == c.id }?.nTodos ?: 0
         DialogoCategoria(
             categoria = c,
             corSugerida = c.corIndex,
             onGuardar = { vm.guardar(it); aEditar = null },
             onFechar = { aEditar = null },
-            onApagar = { vm.apagar(c); aEditar = null },
+            onApagar = { destino -> vm.apagar(c, destino); aEditar = null },
             nPagamentos = nPagamentos,
+            outras = gastos.map { it.categoria }.filter { it.id != c.id },
         )
     }
 }
@@ -273,8 +276,9 @@ private fun DialogoCategoria(
     corSugerida: Int,
     onGuardar: (Categoria) -> Unit,
     onFechar: () -> Unit,
-    onApagar: (() -> Unit)?,
+    onApagar: ((destino: Long?) -> Unit)?,
     nPagamentos: Int = 0,
+    outras: List<Categoria> = emptyList(),
 ) {
     val viz = LocalViz.current
     var nome by remember { mutableStateOf(categoria?.nome ?: "") }
@@ -315,11 +319,11 @@ private fun DialogoCategoria(
                     Spacer(Modifier.height(16.dp))
                     Text(
                         if (nPagamentos == 1)
-                            "Atenção: eliminar esta categoria apaga também o pagamento nela registado."
+                            "Esta categoria tem um pagamento. Ao eliminá-la podes passá-lo para outra categoria."
                         else
-                            "Atenção: eliminar esta categoria apaga também os $nPagamentos pagamentos nela registados.",
+                            "Esta categoria tem $nPagamentos pagamentos. Ao eliminá-la podes passá-los para outra categoria.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = viz.critico,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -356,20 +360,52 @@ private fun DialogoCategoria(
     )
 
     if (confirmarApagar && onApagar != null) {
+        // Por omissão os pagamentos mudam de categoria em vez de desaparecerem:
+        // apagá-los tem de ser uma escolha explícita.
+        var destino by remember { mutableStateOf(outras.firstOrNull()?.id) }
         AlertDialog(
             onDismissRequest = { confirmarApagar = false },
             title = { Text("Eliminar categoria?") },
             text = {
-                Text(
-                    when (nPagamentos) {
-                        0 -> "Esta ação não pode ser desfeita."
-                        1 -> "Vai apagar também o pagamento registado nesta categoria. Não pode ser desfeito."
-                        else -> "Vai apagar também os $nPagamentos pagamentos registados nesta categoria. Não pode ser desfeito."
-                    },
-                )
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    if (nPagamentos == 0) {
+                        Text("Esta ação não pode ser desfeita.")
+                    } else {
+                        Text(
+                            if (nPagamentos == 1) "O que fazer ao pagamento desta categoria?"
+                            else "O que fazer aos $nPagamentos pagamentos desta categoria?",
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            outras.forEach { o ->
+                                FilterChip(
+                                    selected = destino == o.id,
+                                    onClick = { destino = o.id },
+                                    label = { Text("Passar para ${o.nome}") },
+                                )
+                            }
+                            FilterChip(
+                                selected = destino == null,
+                                onClick = { destino = null },
+                                label = { Text("Apagá-los também") },
+                            )
+                        }
+                        if (destino == null) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Os pagamentos são apagados e não há como desfazer.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = viz.critico,
+                            )
+                        }
+                    }
+                }
             },
             confirmButton = {
-                TextButton(onClick = { confirmarApagar = false; onApagar() }) {
+                TextButton(onClick = { confirmarApagar = false; onApagar(if (nPagamentos == 0) null else destino) }) {
                     Text("Eliminar", color = MaterialTheme.colorScheme.error)
                 }
             },

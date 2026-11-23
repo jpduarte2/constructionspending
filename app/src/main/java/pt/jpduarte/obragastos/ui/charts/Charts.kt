@@ -80,19 +80,30 @@ private fun DrawScope.barraH(x: Float, y: Float, largura: Float, altura: Float, 
 /** Coluna vertical: topo arredondado, base quadrada. */
 private fun DrawScope.colunaV(x: Float, base: Float, largura: Float, altura: Float, cor: Color) {
     if (altura <= 0f) return
-    val r = 4.dp.toPx()
-    val topo = base - altura
-    if (altura <= r) {
-        drawRect(cor, Offset(x, topo), Size(largura, altura))
-        return
+    colunaTopoArredondado(x, base - altura, largura, altura, cor)
+}
+
+/**
+ * Retângulo com só os cantos de cima arredondados, desenhado numa única forma.
+ * Desenhá-lo como um retângulo arredondado mais um retângulo por cima deixava
+ * uma faixa mais escura onde os dois se sobrepunham, sempre que a cor tinha
+ * transparência (as colunas não selecionadas).
+ */
+internal fun DrawScope.colunaTopoArredondado(x: Float, y: Float, largura: Float, altura: Float, cor: Color) {
+    val r = minOf(4.dp.toPx(), altura, largura / 2f)
+    val canto = androidx.compose.ui.geometry.CornerRadius(r, r)
+    val forma = androidx.compose.ui.graphics.Path().apply {
+        addRoundRect(
+            androidx.compose.ui.geometry.RoundRect(
+                rect = Rect(Offset(x, y), Size(largura, altura)),
+                topLeft = canto,
+                topRight = canto,
+                bottomRight = androidx.compose.ui.geometry.CornerRadius.Zero,
+                bottomLeft = androidx.compose.ui.geometry.CornerRadius.Zero,
+            ),
+        )
     }
-    drawRoundRect(
-        color = cor,
-        topLeft = Offset(x, topo),
-        size = Size(largura, altura),
-        cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
-    )
-    drawRect(cor, Offset(x, topo + r), Size(largura, altura - r))
+    drawPath(forma, cor)
 }
 
 /**

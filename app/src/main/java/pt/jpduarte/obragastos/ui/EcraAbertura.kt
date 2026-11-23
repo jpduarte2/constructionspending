@@ -219,7 +219,7 @@ fun EcraAbertura(onTerminar: () -> Unit) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                "Construção Jovim 2026",
+                "Construção 2026",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.graphicsLayer { alpha = texto.value },

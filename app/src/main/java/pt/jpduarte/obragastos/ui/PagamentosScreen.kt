@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.BrightnessAuto
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.FileDownload
@@ -45,7 +46,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -65,12 +68,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import pt.jpduarte.obragastos.data.ORIGEM_BANCARIO
 import pt.jpduarte.obragastos.data.Categoria
 import pt.jpduarte.obragastos.data.Definicoes
 import pt.jpduarte.obragastos.data.Pagamento
 import pt.jpduarte.obragastos.data.data
+import pt.jpduarte.obragastos.data.emEuros
 import pt.jpduarte.obragastos.data.ivaPoupado
 import pt.jpduarte.obragastos.data.totalPago
+import pt.jpduarte.obragastos.data.totalPagoCent
 import pt.jpduarte.obragastos.ui.theme.LocalViz
 import java.time.YearMonth
 
@@ -81,6 +87,7 @@ fun PagamentosScreen(
     padding: PaddingValues,
     onNovo: () -> Unit,
     onEditar: (Long) -> Unit,
+    onEscolherGraficos: () -> Unit,
 ) {
     val pagamentos by vm.pagamentos.collectAsState()
     val categorias by vm.categorias.collectAsState()
@@ -100,6 +107,7 @@ fun PagamentosScreen(
     /* ---------- exportar / importar ---------- */
 
     val estadoSnackbar = remember { SnackbarHostState() }
+    SnackbarDesfazer(vm, estadoSnackbar)
     val resultado by vm.resultadoFicheiro.collectAsState()
     var menuAberto by remember { mutableStateOf(false) }
     var confirmarImportacao by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -114,12 +122,25 @@ fun PagamentosScreen(
 
     LaunchedEffect(resultado) {
         val r = resultado ?: return@LaunchedEffect
-        val texto = when (r) {
-            is ObraViewModel.ResultadoFicheiro.Sucesso -> r.mensagem
-            is ObraViewModel.ResultadoFicheiro.Falha -> "Erro: ${r.mensagem}"
-        }
-        estadoSnackbar.showSnackbar(texto)
         vm.limparResultadoFicheiro()
+        when (r) {
+            is ObraViewModel.ResultadoFicheiro.Sucesso -> {
+                // Depois de uma importação há uma cópia do que lá estava antes:
+                // "Desfazer" repõe-na.
+                val copia = r.copia
+                if (copia == null) {
+                    estadoSnackbar.showSnackbar(r.mensagem)
+                } else {
+                    val escolha = estadoSnackbar.showSnackbar(
+                        r.mensagem,
+                        actionLabel = "Desfazer",
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (escolha == SnackbarResult.ActionPerformed) vm.reporCopia(copia)
+                }
+            }
+            is ObraViewModel.ResultadoFicheiro.Falha -> estadoSnackbar.showSnackbar("Erro: ${r.mensagem}")
+        }
     }
 
     confirmarImportacao?.let { uri ->
@@ -128,9 +149,9 @@ fun PagamentosScreen(
             title = { Text("Importar e substituir tudo?") },
             text = {
                 Text(
-                    "A importação apaga os pagamentos, categorias, orçamentos e o " +
+                    "A importação apaga os pagamentos, despesas, categorias, orçamentos e o " +
                         "livro de obra que tens agora, e põe no lugar o que vier do " +
-                        "ficheiro. Não há como desfazer — exporta primeiro, se tiveres dúvidas.",
+                        "ficheiro. Fica uma cópia do que há agora: logo a seguir podes desfazer.",
                 )
             },
             confirmButton = {
@@ -188,6 +209,16 @@ fun PagamentosScreen(
                             },
                         )
                         HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Escolher gráficos") },
+                            leadingIcon = {
+                                Icon(Icons.Outlined.BarChart, contentDescription = null)
+                            },
+                            onClick = {
+                                menuAberto = false
+                                onEscolherGraficos()
+                            },
+                        )
                         DropdownMenuItem(
                             text = { Text(if (escuro) "Modo claro" else "Modo escuro") },
                             leadingIcon = {
@@ -281,7 +312,7 @@ fun PagamentosScreen(
                 val grupos = visiveis.groupBy { YearMonth.from(it.data) }
                 grupos.forEach { (mes, doMes) ->
                     item(key = "cab-$mes") {
-                        CabecalhoMes(mes, doMes.sumOf { it.totalPago })
+                        CabecalhoMes(mes, doMes.sumOf { it.totalPagoCent }.emEuros())
                     }
                     items(doMes, key = { it.id }) { p ->
                         LinhaPagamento(
@@ -449,7 +480,9 @@ private fun LinhaPagamento(
                     append(categoria?.nome ?: "—")
                     append(" · ")
                     append(pagamento.data.textoCurto())
+                    if (pagamento.fornecedor.isNotBlank()) append(" · ").append(pagamento.fornecedor)
                     if (!pagamento.contaParaObra) append(" · fora da obra")
+                    if (pagamento.origemFundos == ORIGEM_BANCARIO) append(" · bancário")
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

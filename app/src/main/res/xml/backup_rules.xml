@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
     <include domain="database" path="obragastos.db" />
+    <!-- As fotos do livro de obra, já reduzidas (uns 250 KB cada). -->
+    <include domain="file" path="fotos/" />
 </full-backup-content>
