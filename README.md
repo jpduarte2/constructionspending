@@ -535,7 +535,7 @@ Robolectric descarrega uma imagem do Android, por isso precisa de rede.
 
 A build de release passa pelo **R8** (`isMinifyEnabled` e `isShrinkResources`):
 o APK tem cerca de 1,6 MB (eram 11 MB, quase todos de ícones não usados).
-`versionCode` sobe a cada APK que vai para o telemóvel (está na 2, `1.1`).
+`versionCode` sobe a cada APK que vai para o telemóvel (está na 3, `1.2`).
 
 O `--offline` é o que se usa aqui porque a máquina não tem acesso à Internet e
 todas as dependências já estão na cache do Gradle. Com rede, pode omitir-se.
