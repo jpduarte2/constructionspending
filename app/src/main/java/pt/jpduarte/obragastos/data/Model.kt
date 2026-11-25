@@ -93,8 +93,10 @@ data class Pagamento(
     @ColumnInfo(defaultValue = "")
     val fornecedor: String = "",
     /**
-     * De onde veio o dinheiro: [ORIGEM_PESSOAL] (poupanças, conta própria) ou
-     * [ORIGEM_BANCARIO] (crédito do banco). Alimenta o gráfico da origem dos fundos.
+     * De onde veio o dinheiro: [ORIGEM_PESSOAL] (poupanças, conta própria),
+     * [ORIGEM_BANCARIO] (crédito do banco) ou [ORIGEM_NAO_APLICA] (não entra na
+     * comparação). Alimenta o gráfico da origem dos fundos; os totais da obra
+     * contam o pagamento seja qual for a origem.
      */
     @ColumnInfo(defaultValue = ORIGEM_PESSOAL)
     val origemFundos: String = ORIGEM_PESSOAL,
@@ -102,6 +104,8 @@ data class Pagamento(
 
 const val ORIGEM_PESSOAL = "pessoal"
 const val ORIGEM_BANCARIO = "bancario"
+/** Fica fora do gráfico da origem dos fundos (mas continua nos totais). */
+const val ORIGEM_NAO_APLICA = "na"
 
 val Pagamento.bancario: Boolean get() = origemFundos == ORIGEM_BANCARIO
 

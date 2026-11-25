@@ -17,6 +17,7 @@ class CsvBackupTest {
                 id = 1, categoriaId = 10, descricao = "Tranche \"1\"", dataEpochDay = dia,
                 valorBaseCent = 123_456, baseTributavelCent = 100_000, taxaIva = 23.0, ivaPago = true,
                 contaParaObra = true, notas = "linha 1\nlinha 2", fornecedor = "Silva, Lda.",
+                origemFundos = ORIGEM_NAO_APLICA,
             ),
             Pagamento(
                 id = 2, categoriaId = 11, descricao = "", dataEpochDay = dia,

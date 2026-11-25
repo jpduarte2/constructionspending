@@ -69,6 +69,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pt.jpduarte.obragastos.data.ORIGEM_BANCARIO
+import pt.jpduarte.obragastos.data.ORIGEM_NAO_APLICA
 import pt.jpduarte.obragastos.data.Categoria
 import pt.jpduarte.obragastos.data.Definicoes
 import pt.jpduarte.obragastos.data.Pagamento
@@ -483,6 +484,7 @@ private fun LinhaPagamento(
                     if (pagamento.fornecedor.isNotBlank()) append(" · ").append(pagamento.fornecedor)
                     if (!pagamento.contaParaObra) append(" · fora da obra")
                     if (pagamento.origemFundos == ORIGEM_BANCARIO) append(" · bancário")
+                    if (pagamento.origemFundos == ORIGEM_NAO_APLICA) append(" · origem N/A")
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

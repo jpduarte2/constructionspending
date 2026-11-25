@@ -50,6 +50,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pt.jpduarte.obragastos.data.ORIGEM_BANCARIO
+import pt.jpduarte.obragastos.data.ORIGEM_NAO_APLICA
 import pt.jpduarte.obragastos.data.ORIGEM_PESSOAL
 import pt.jpduarte.obragastos.data.Pagamento
 import pt.jpduarte.obragastos.data.TAXA_IVA_NORMAL
@@ -302,6 +303,18 @@ fun PagamentoFormScreen(
                     selected = origemFundos == ORIGEM_BANCARIO,
                     onClick = { origemFundos = ORIGEM_BANCARIO },
                     label = { Text("Bancário") },
+                )
+                FilterChip(
+                    selected = origemFundos == ORIGEM_NAO_APLICA,
+                    onClick = { origemFundos = ORIGEM_NAO_APLICA },
+                    label = { Text("N/A") },
+                )
+            }
+            if (origemFundos == ORIGEM_NAO_APLICA) {
+                Text(
+                    "Não se aplica: fica fora do gráfico da origem dos fundos, mas conta nos totais.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 

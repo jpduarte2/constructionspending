@@ -20,7 +20,7 @@ import java.util.Locale
  *
  * Secções desconhecidas são ignoradas em silêncio e secções em falta ficam
  * vazias — é o que permite ler ficheiros de outras versões sem rebentar.
- * Versão 5: a origem dos fundos de cada pagamento (`Pessoal`/`Bancário`), no
+ * Versão 5: a origem dos fundos de cada pagamento (`Pessoal`/`Bancário`/`N/A`), no
  * fim de #PAGAMENTOS; sem ela o pagamento entra como pessoal.
  * Versão 4: recorrentes com qualquer intervalo (unidade, intervalo, início,
  * contagem, número máximo de vezes), em colunas novas no fim.
@@ -118,7 +118,11 @@ object CsvBackup {
                 booleano(p.contaParaObra),
                 p.notas,
                 p.fornecedor,
-                if (p.bancario) "Bancário" else "Pessoal",
+                when (p.origemFundos) {
+                    ORIGEM_BANCARIO -> "Bancário"
+                    ORIGEM_NAO_APLICA -> "N/A"
+                    else -> "Pessoal"
+                },
             )
         }
         sb.append("\r\n")
@@ -378,9 +382,18 @@ object CsvBackup {
         }
     }
 
-    /** "Bancário", "bancario", "banco", "b" → bancário; tudo o resto (e vazio) → pessoal. */
-    private fun origem(texto: String?): String =
-        if (texto?.trim()?.lowercase()?.startsWith("b") == true) ORIGEM_BANCARIO else ORIGEM_PESSOAL
+    /**
+     * "Bancário"/"banco"/"b" → bancário; "N/A"/"NA"/"não se aplica" → não se aplica;
+     * tudo o resto (e vazio) → pessoal.
+     */
+    private fun origem(texto: String?): String {
+        val t = texto?.trim()?.lowercase().orEmpty()
+        return when {
+            t.startsWith("b") -> ORIGEM_BANCARIO
+            t == "n/a" || t == "na" || t.startsWith("não") || t.startsWith("nao") -> ORIGEM_NAO_APLICA
+            else -> ORIGEM_PESSOAL
+        }
+    }
 
     /** Aceita "1 234,56" e "1234.56" — o ficheiro pode ter passado pelo Excel. */
     private fun numero(texto: String?): Double? {

@@ -360,6 +360,7 @@ fun GraficosScreen(vm: ObraViewModel, padding: PaddingValues, onEscolher: () -> 
 @Composable
 private fun BlocoResumo(resumo: ResumoObra, resumoExtra: ResumoObra) {
     Card(
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
@@ -632,7 +633,7 @@ private fun BlocoOrigemFundos(d: DadosGraficos) {
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth()) {
             Text(
-                "Total gasto na casa",
+                if (o.naoAplica > 0.0) "Total pessoal + bancário" else "Total gasto na casa",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
@@ -642,6 +643,14 @@ private fun BlocoOrigemFundos(d: DadosGraficos) {
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        if (o.naoAplica > 0.0) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Ficam de fora ${o.naoAplica.eurCurto()} em pagamentos marcados como N/A.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -1321,6 +1330,7 @@ internal fun Secao(
     conteudo: @Composable () -> Unit,
 ) {
     Card(
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {

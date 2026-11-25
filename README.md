@@ -133,9 +133,12 @@ só diferem em maiúsculas e espaços).
 ## Origem dos fundos
 
 Cada pagamento diz de onde veio o dinheiro: **Pessoal** (poupanças, conta
-própria — a escolha por omissão) ou **Bancário** (crédito do banco), em
-`Pagamento.origemFundos` (`pessoal` / `bancario`). Na lista dos pagamentos os
-bancários aparecem marcados com "· bancário". Alimenta o gráfico *Origem dos
+própria — a escolha por omissão), **Bancário** (crédito do banco) ou **N/A** (não
+se aplica — coisas que não se quer contabilizar na comparação), em
+`Pagamento.origemFundos` (`pessoal` / `bancario` / `na`). Um pagamento N/A fica
+fora do gráfico da origem dos fundos, mas **continua** nos totais da obra e nos
+outros gráficos; o gráfico diz quanto ficou de fora. Na lista dos pagamentos
+aparecem marcados com "· bancário" ou "· origem N/A". Alimenta o gráfico *Origem dos
 fundos*: em cima, todo o dinheiro da casa (obra **e** fora da obra — o terreno é
 muitas vezes pago pelo crédito) dividido entre pessoal e bancário; em baixo, só a
 obra, mês a mês, em colunas empilhadas.
@@ -295,7 +298,7 @@ estraga os acentos). O ficheiro está dividido em secções `#OBRAGASTOS`,
 `#ORCAMENTO`, `#CATEGORIAS`, `#PAGAMENTOS`, `#EVENTOS`, `#DESPESAS`.
 
 O formato está na **versão 5**: a 5 juntou a origem dos fundos (`Pessoal`/
-`Bancário`) no fim de `#PAGAMENTOS` — sem ela o pagamento entra como pessoal; a 4 juntou às recorrentes a unidade, o
+`Bancário`/`N/A`) no fim de `#PAGAMENTOS` — sem ela o pagamento entra como pessoal; a 4 juntou às recorrentes a unidade, o
 intervalo, o início, a contagem e o máximo de vezes (os ficheiros da 3, só
 mensais, continuam a ler-se a partir do último mês lançado); a 3 trouxe `#DESPESAS_FIXAS` e, no fim de
 `#DESPESAS`, a chave da fixa que lançou cada despesa e a marca "a confirmar". A 2
@@ -535,7 +538,7 @@ Robolectric descarrega uma imagem do Android, por isso precisa de rede.
 
 A build de release passa pelo **R8** (`isMinifyEnabled` e `isShrinkResources`):
 o APK tem cerca de 1,6 MB (eram 11 MB, quase todos de ícones não usados).
-`versionCode` sobe a cada APK que vai para o telemóvel (está na 3, `1.2`).
+`versionCode` sobe a cada APK que vai para o telemóvel (está na 5, `1.4`).
 
 O `--offline` é o que se usa aqui porque a máquina não tem acesso à Internet e
 todas as dependências já estão na cache do Gradle. Com rede, pode omitir-se.

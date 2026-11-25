@@ -24,8 +24,8 @@ android {
         minSdk = 26
         targetSdk = 35
         // Subir a cada APK instalado no telemóvel, para se saber qual está lá.
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 5
+        versionName = "1.4"
         vectorDrawables.useSupportLibrary = true
     }
 

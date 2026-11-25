@@ -8,6 +8,7 @@ import org.junit.Test
 import pt.jpduarte.obragastos.data.Categoria
 import pt.jpduarte.obragastos.data.Despesa
 import pt.jpduarte.obragastos.data.ORIGEM_BANCARIO
+import pt.jpduarte.obragastos.data.ORIGEM_NAO_APLICA
 import pt.jpduarte.obragastos.data.ORIGEM_PESSOAL
 import pt.jpduarte.obragastos.data.RUBRICA_PRESTACAO
 import pt.jpduarte.obragastos.data.Pagamento
@@ -122,8 +123,13 @@ class EstatisticasTest {
                 pag("2026-01-20", 300, origem = ORIGEM_BANCARIO),
                 pag("2026-03-02", 200, pago = false, origem = ORIGEM_BANCARIO),
                 pag("2020-01-10", 1_000, obra = false, pago = false, origem = ORIGEM_BANCARIO),
+                // N/A: fora da comparação, mas continua no total da obra
+                pag("2026-01-25", 50, pago = false, origem = ORIGEM_NAO_APLICA),
             ),
         )
+        assertEquals(50.0, d.origem.naoAplica, 0.001)
+        assertEquals(123.0 + 369.0 + 200.0 + 1_000.0, d.origem.total, 0.001)
+        assertEquals(123.0 + 369.0 + 200.0 + 50.0, d.resumo.totalPago, 0.001)
         // 100 e 300 com IVA pago (×1,23); 200 e 1000 sem IVA
         assertEquals(123.0, d.origem.pessoal, 0.001)
         assertEquals(369.0 + 200.0 + 1_000.0, d.origem.bancario, 0.001)

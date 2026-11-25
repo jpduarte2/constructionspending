@@ -6,7 +6,9 @@ import pt.jpduarte.obragastos.data.EventoObra
 import pt.jpduarte.obragastos.data.Pagamento
 import pt.jpduarte.obragastos.data.RUBRICAS_DESPESA
 import pt.jpduarte.obragastos.data.RUBRICA_PRESTACAO
-import pt.jpduarte.obragastos.data.bancario
+import pt.jpduarte.obragastos.data.ORIGEM_BANCARIO
+import pt.jpduarte.obragastos.data.ORIGEM_NAO_APLICA
+import pt.jpduarte.obragastos.data.ORIGEM_PESSOAL
 import pt.jpduarte.obragastos.data.custoRealCent
 import pt.jpduarte.obragastos.data.data
 import pt.jpduarte.obragastos.data.emEuros
@@ -112,8 +114,11 @@ data class AtividadeDia(val pagamentos: Int = 0, val eventos: Int = 0) {
     val total: Int get() = pagamentos + eventos
 }
 
-/** O que saiu de dinheiro pessoal e o que veio do banco, em euros. */
-data class OrigemFundos(val pessoal: Double = 0.0, val bancario: Double = 0.0) {
+/**
+ * O que saiu de dinheiro pessoal e o que veio do banco, em euros. [naoAplica]
+ * são os pagamentos marcados "N/A": não entram na comparação nem no [total].
+ */
+data class OrigemFundos(val pessoal: Double = 0.0, val bancario: Double = 0.0, val naoAplica: Double = 0.0) {
     val total: Double get() = pessoal + bancario
 }
 
@@ -287,10 +292,11 @@ fun calcularDadosGraficos(
     }.sortedByDescending { it.total }
 
     fun origemDe(ps: List<Pagamento>): OrigemFundos {
-        val (banco, pessoal) = ps.partition { it.bancario }
+        fun soma(origem: String) = ps.filter { it.origemFundos == origem }.sumOf { it.totalPagoCent }.emEuros()
         return OrigemFundos(
-            pessoal = pessoal.sumOf { it.totalPagoCent }.emEuros(),
-            bancario = banco.sumOf { it.totalPagoCent }.emEuros(),
+            pessoal = soma(ORIGEM_PESSOAL),
+            bancario = soma(ORIGEM_BANCARIO),
+            naoAplica = soma(ORIGEM_NAO_APLICA),
         )
     }
     val origemPorMes = run {
