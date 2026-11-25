@@ -2,6 +2,8 @@ package pt.jpduarte.obragastos.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.FilterAltOff
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -94,6 +96,7 @@ fun PagamentosScreen(
     val categorias by vm.categorias.collectAsState()
     val resumo by vm.resumo.collectAsState()
     val resumoExtra by vm.resumoExtra.collectAsState()
+    val orcamento by vm.orcamentoTotal.collectAsState()
     val tema by vm.tema.collectAsState()
     val escuro = isSystemInDarkTheme().let { sistema ->
         when (tema) {
@@ -277,7 +280,7 @@ fun PagamentosScreen(
             ),
         ) {
             item {
-                CartaoTotal(resumo, resumoExtra, Modifier.padding(horizontal = 16.dp))
+                CartaoTotal(resumo, resumoExtra, orcamento, Modifier.padding(horizontal = 16.dp))
                 Spacer(Modifier.height(12.dp))
             }
 
@@ -313,7 +316,7 @@ fun PagamentosScreen(
                 val grupos = visiveis.groupBy { YearMonth.from(it.data) }
                 grupos.forEach { (mes, doMes) ->
                     item(key = "cab-$mes") {
-                        CabecalhoMes(mes, doMes.sumOf { it.totalPagoCent }.emEuros())
+                        CabecalhoMes(mes, doMes.sumOf { it.totalPagoCent }.emEuros(), doMes.size)
                     }
                     items(doMes, key = { it.id }) { p ->
                         LinhaPagamento(
@@ -322,7 +325,7 @@ fun PagamentosScreen(
                             onClick = { onEditar(p.id) },
                         )
                         HorizontalDivider(
-                            modifier = Modifier.padding(start = 16.dp),
+                            modifier = Modifier.padding(start = 72.dp),
                             color = MaterialTheme.colorScheme.outlineVariant,
                         )
                     }
@@ -333,73 +336,72 @@ fun PagamentosScreen(
 }
 
 /**
- * Figura principal do ecrã: o total da obra. Um número grande vale mais que um
- * gráfico de uma barra — e há exatamente um por vista.
+ * Figura principal do ecrã: o total da obra, em destaque. Com orçamento
+ * definido, a barra mostra quanto já se usou dele.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CartaoTotal(
     resumo: ResumoObra,
     extra: ResumoObra,
+    orcamento: Double,
     modifier: Modifier = Modifier,
 ) {
     val viz = LocalViz.current
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-    ) {
-        Column(Modifier.padding(20.dp)) {
-            Text(
-                "Total gasto na obra",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+    CartaoDestaque(modifier) {
+        Text("Total gasto na obra", style = MaterialTheme.typography.labelLarge, color = corNoDestaqueSuave)
+        Spacer(Modifier.height(2.dp))
+        Text(
+            resumo.totalPago.eur(),
+            fontSize = 36.sp,
+            fontWeight = FontWeight.Bold,
+            color = corNoDestaque,
+        )
+        if (orcamento > 0.0) {
+            val fracao = resumo.totalPago / orcamento
+            Spacer(Modifier.height(10.dp))
+            BarraProgresso(fracao, corOrcamento(fracao), MaterialTheme.colorScheme.surface.copy(alpha = 0.5f), altura = 10.dp)
             Spacer(Modifier.height(4.dp))
             Text(
-                resumo.totalPago.eur(),
-                fontSize = 34.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
+                if (fracao <= 1.0) "${(fracao * 100).pct(0)} do orçamento · faltam ${(orcamento - resumo.totalPago).eurCurto()}"
+                else "${(fracao * 100).pct(0)} do orçamento · ${(resumo.totalPago - orcamento).eurCurto()} acima",
+                style = MaterialTheme.typography.labelMedium,
+                color = corNoDestaqueSuave,
             )
-            Spacer(Modifier.height(10.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                MiniDado("Sem IVA", resumo.totalBase.eurCurto())
-                MiniDado("IVA pago", resumo.ivaPago.eurCurto())
-                if (resumo.ivaPoupado > 0) {
-                    MiniDado("IVA poupado", resumo.ivaPoupado.eurCurto(), viz.tintaPositiva)
-                }
-                MiniDado("Pagamentos", resumo.nPagamentos.toString())
+        }
+        Spacer(Modifier.height(14.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            MiniDado("Sem IVA", resumo.totalBase.eurCurto())
+            MiniDado("IVA pago", resumo.ivaPago.eurCurto())
+            if (resumo.ivaPoupado > 0) {
+                MiniDado("IVA poupado", resumo.ivaPoupado.eurCurto(), viz.tintaPositiva)
             }
+            MiniDado("Pagamentos", resumo.nPagamentos.toString())
+        }
 
-            // Os custos fora da obra ficam à parte, para o total acima não mentir.
-            if (extra.nPagamentos > 0) {
-                Spacer(Modifier.height(12.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Spacer(Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "Custos fora da obra",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            plural(extra.nPagamentos, "pagamento", "pagamentos"),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+        // Os custos fora da obra ficam à parte, para o total acima não mentir.
+        if (extra.nPagamentos > 0) {
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider(color = corNoDestaque.copy(alpha = 0.15f))
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Custos fora da obra", style = MaterialTheme.typography.labelMedium, color = corNoDestaqueSuave)
                     Text(
-                        extra.totalPago.eur(),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        plural(extra.nPagamentos, "pagamento", "pagamentos"),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = corNoDestaqueSuave,
                     )
                 }
+                Text(
+                    extra.totalPago.eur(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = corNoDestaque,
+                )
             }
         }
     }
@@ -412,42 +414,37 @@ private fun MiniDado(
     corValor: androidx.compose.ui.graphics.Color? = null,
 ) {
     Column {
-        Text(
-            rotulo,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Text(rotulo, style = MaterialTheme.typography.labelSmall, color = corNoDestaqueSuave)
         Text(
             valor,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
-            color = corValor ?: MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = corValor ?: corNoDestaque,
         )
     }
 }
 
 @Composable
-private fun CabecalhoMes(mes: YearMonth, subtotal: Double) {
+private fun CabecalhoMes(mes: YearMonth, subtotal: Double, n: Int) {
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.Bottom,
     ) {
-        Text(
-            mes.texto(),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            subtotal.eurCurto(),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Column(Modifier.weight(1f)) {
+            Text(mes.texto(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                plural(n, "pagamento", "pagamentos"),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(subtotal.eurCurto(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LinhaPagamento(
     pagamento: Pagamento,
@@ -464,14 +461,14 @@ private fun LinhaPagamento(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // A cor vive no ponto, nunca no texto.
-        Box(Modifier.size(10.dp).clip(CircleShape).background(cor))
-        Spacer(Modifier.width(12.dp))
+        IconeCategoria(categoria?.nome ?: "?", cor)
+        Spacer(Modifier.width(16.dp))
 
         Column(Modifier.weight(1f)) {
             Text(
                 pagamento.descricao.ifBlank { categoria?.nome ?: "Pagamento" },
                 style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -482,33 +479,38 @@ private fun LinhaPagamento(
                     append(" · ")
                     append(pagamento.data.textoCurto())
                     if (pagamento.fornecedor.isNotBlank()) append(" · ").append(pagamento.fornecedor)
-                    if (!pagamento.contaParaObra) append(" · fora da obra")
-                    if (pagamento.origemFundos == ORIGEM_BANCARIO) append(" · bancário")
-                    if (pagamento.origemFundos == ORIGEM_NAO_APLICA) append(" · origem N/A")
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            val selos = buildList {
+                if (!pagamento.contaParaObra) add("fora da obra" to viz.esbatido)
+                if (pagamento.origemFundos == ORIGEM_BANCARIO) add("bancário" to viz.magnitude)
+                if (pagamento.origemFundos == ORIGEM_NAO_APLICA) add("origem N/A" to viz.esbatido)
+            }
+            if (selos.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    selos.forEach { (t, c) -> Selo(t, c) }
+                }
+            }
         }
 
         Spacer(Modifier.width(12.dp))
         Column(horizontalAlignment = Alignment.End) {
             Text(
                 pagamento.totalPago.eur(),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
+            Spacer(Modifier.height(2.dp))
             if (pagamento.ivaPoupado > 0.0) {
                 // Cobre tanto o IVA não pago como o que a parte não tributada
                 // teria custado — em qualquer dos casos é dinheiro que não saiu.
-                Text(
-                    "poupou ${pagamento.ivaPoupado.eurCurto()}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = viz.tintaPositiva,
-                )
+                Selo("poupou ${pagamento.ivaPoupado.eurCurto()}", viz.tintaPositiva)
             } else {
                 Text(
                     "c/ IVA ${pagamento.taxaIva.taxaTexto()}%",
@@ -522,23 +524,10 @@ private fun LinhaPagamento(
 
 @Composable
 private fun EstadoVazio(temPagamentos: Boolean) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            if (temPagamentos) "Sem pagamentos nesta categoria" else "Ainda não registaste pagamentos",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            if (temPagamentos) "Escolhe outra categoria ou limpa o filtro."
-            else "Toca em “Pagamento” para registar o primeiro.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    EstadoVazioIlustrado(
+        icone = if (temPagamentos) Icons.Outlined.FilterAltOff else Icons.AutoMirrored.Outlined.ReceiptLong,
+        titulo = if (temPagamentos) "Sem pagamentos nesta categoria" else "Ainda não registaste pagamentos",
+        texto = if (temPagamentos) "Escolhe outra categoria ou limpa o filtro."
+        else "Toca em “Pagamento” para registar o primeiro.",
+    )
 }

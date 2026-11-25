@@ -23,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
@@ -119,26 +120,14 @@ fun LivroScreen(vm: ObraViewModel, padding: PaddingValues) {
         },
     ) { interno ->
         if (eventos.isEmpty()) {
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .padding(interno)
-                    .padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Spacer(Modifier.height(48.dp))
-                Text(
-                    "O livro está vazio",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "Regista aqui o que vai acontecendo na obra — início das " +
+            Column(Modifier.fillMaxSize().padding(interno)) {
+                Spacer(Modifier.height(32.dp))
+                EstadoVazioIlustrado(
+                    icone = Icons.Outlined.MenuBook,
+                    titulo = "O livro está vazio",
+                    texto = "Regista aqui o que vai acontecendo na obra — início das " +
                         "movimentações de terras, montagem do estaleiro, vistorias, " +
                         "atrasos. Fica com a data e a ordem que lhe deres.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         } else {
@@ -277,34 +266,41 @@ private fun LinhaEvento(
                 .fillMaxHeight()
                 .drawBehind {
                     val x = size.width / 2f
-                    val yPonto = 22.dp.toPx()
-                    val raio = 5.dp.toPx()
+                    val yPonto = 28.dp.toPx()
+                    val raio = 6.dp.toPx()
+                    val halo = 11.dp.toPx()
                     val traco = 2.dp.toPx()
                     if (!primeiro) {
-                        drawLine(corLinha, Offset(x, 0f), Offset(x, yPonto - raio), traco)
+                        drawLine(corLinha, Offset(x, 0f), Offset(x, yPonto - halo), traco)
                     }
                     if (!ultimo) {
-                        drawLine(corLinha, Offset(x, yPonto + raio), Offset(x, size.height), traco)
+                        drawLine(corLinha, Offset(x, yPonto + halo), Offset(x, size.height), traco)
                     }
+                    drawCircle(corPonto.copy(alpha = 0.22f), radius = halo, center = Offset(x, yPonto))
                     drawCircle(corPonto, radius = raio, center = Offset(x, yPonto))
                 },
         )
 
+        // Cada evento num cartão ao lado da linha do tempo.
         Column(
             Modifier
                 .weight(1f)
-                .padding(start = 4.dp, top = 12.dp, bottom = 20.dp),
+                .padding(start = 6.dp, top = 6.dp, bottom = 12.dp)
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(14.dp),
         ) {
             Text(
                 evento.data.texto(),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold,
+                color = corPonto,
             )
             Spacer(Modifier.height(2.dp))
             Text(
                 evento.titulo,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             if (evento.descricao.isNotBlank()) {
@@ -323,11 +319,11 @@ private fun LinhaEvento(
                     fotos.take(MINIATURAS).forEachIndexed { j, nome ->
                         val resto = fotos.size - MINIATURAS
                         Box(contentAlignment = Alignment.Center) {
-                            Miniatura(nome, 56.dp, onClick = { onVerFoto(j) })
+                            Miniatura(nome, TAMANHO_MINIATURA, onClick = { onVerFoto(j) })
                             if (j == MINIATURAS - 1 && resto > 0) {
                                 Box(
                                     Modifier
-                                        .size(56.dp)
+                                        .size(TAMANHO_MINIATURA)
                                         .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
                                         .background(Color.Black.copy(alpha = 0.5f))
                                         .clickable { onVerFoto(j) },
@@ -342,7 +338,7 @@ private fun LinhaEvento(
             }
         }
 
-        Column(Modifier.padding(top = 4.dp)) {
+        Column(Modifier.padding(top = 10.dp)) {
             IconButton(onClick = onSubir, enabled = !primeiro, modifier = Modifier.size(36.dp)) {
                 Icon(
                     Icons.Outlined.ArrowUpward,
@@ -362,6 +358,8 @@ private fun LinhaEvento(
 }
 
 private const val MINIATURAS = 4
+
+private val TAMANHO_MINIATURA = 64.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

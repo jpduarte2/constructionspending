@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -149,75 +151,93 @@ private fun CartaoCategoria(g: GastoCategoria, onEditar: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
-        Column(
-            Modifier
-                .clickable(enabled = podeAbrir) { aberto = !aberto }
-                .padding(16.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(12.dp).clip(CircleShape).background(cor))
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    g.categoria.nome,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    g.totalGeral.eurCurto(),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                IconButton(onClick = onEditar, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        Icons.Outlined.Edit,
-                        contentDescription = "Editar ${g.categoria.nome}",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+        Row(Modifier.height(IntrinsicSize.Min)) {
+            // A faixa na cor da categoria, como nos pagamentos.
+            Box(Modifier.width(6.dp).fillMaxHeight().background(cor))
+            Column(
+                Modifier
+                    .clickable(enabled = podeAbrir) { aberto = !aberto }
+                    .padding(start = 14.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Com orçamento: um anel com a percentagem gasta (verde, laranja
+                    // perto do limite, vermelho acima). Sem orçamento: a inicial.
+                    if (orcamento > 0.0) {
+                        val fracao = g.total / orcamento
+                        AnelProgresso(fracao, corOrcamento(fracao), tamanho = 52.dp) {
+                            Text(
+                                (fracao * 100).pct(0),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (fracao > 1.0) viz.critico else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    } else {
+                        IconeCategoria(g.categoria.nome, cor, tamanho = 44.dp)
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            g.categoria.nome,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            g.totalGeral.eurCurto(),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    IconButton(onClick = onEditar, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.Outlined.Edit,
+                            contentDescription = "Editar ${g.categoria.nome}",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (podeAbrir) {
+                        Icon(
+                            if (aberto) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = if (aberto) "Fechar pagamentos" else "Ver pagamentos",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-                if (podeAbrir) {
-                    Icon(
-                        if (aberto) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        contentDescription = if (aberto) "Fechar pagamentos" else "Ver pagamentos",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
 
-            Spacer(Modifier.height(4.dp))
-            Text(
-                resumoDaCategoria(g),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            if (orcamento > 0.0) {
-                Spacer(Modifier.height(10.dp))
-                // O medidor mede-se contra o gasto de obra: o orçamento é da
-                // obra, e os custos fora dela não devem consumi-lo.
-                Medidor(gasto = g.total, limite = orcamento)
-                Spacer(Modifier.height(6.dp))
-                val restante = orcamento - g.total
+                Spacer(Modifier.height(4.dp))
                 Text(
-                    if (restante >= 0)
-                        "Faltam ${restante.eurCurto()} de ${orcamento.eurCurto()}"
-                    else
-                        "Excedeu o orçamento em ${(-restante).eurCurto()}",
+                    resumoDaCategoria(g),
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (restante >= 0) MaterialTheme.colorScheme.onSurfaceVariant
-                    else viz.critico,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
 
-            AnimatedVisibility(visible = aberto) {
-                Column {
-                    Spacer(Modifier.height(12.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    g.pagamentos.forEach { p ->
-                        LinhaPagamentoCategoria(p)
+                if (orcamento > 0.0) {
+                    // O anel mede-se contra o gasto de obra: o orçamento é da
+                    // obra, e os custos fora dela não devem consumi-lo.
+                    Spacer(Modifier.height(2.dp))
+                    val restante = orcamento - g.total
+                    Text(
+                        if (restante >= 0)
+                            "Faltam ${restante.eurCurto()} de ${orcamento.eurCurto()}"
+                        else
+                            "Excedeu o orçamento em ${(-restante).eurCurto()}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (restante >= 0) MaterialTheme.colorScheme.onSurfaceVariant
+                        else viz.critico,
+                    )
+                }
+
+                AnimatedVisibility(visible = aberto) {
+                    Column {
+                        Spacer(Modifier.height(12.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        g.pagamentos.forEach { p ->
+                            LinhaPagamentoCategoria(p)
+                        }
                     }
                 }
             }

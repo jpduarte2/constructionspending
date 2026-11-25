@@ -1,7 +1,10 @@
 package pt.jpduarte.obragastos.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -9,6 +12,8 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.dp
 
 /**
  * Cores dedicadas a visualização de dados.
@@ -201,6 +206,30 @@ private val EsquemaEscuro = darkColorScheme(
     onError = Color(0xFF2A0A0A),
 )
 
+/**
+ * Algarismos todos da mesma largura ("tnum"): os valores em euros ficam
+ * alinhados em coluna e não dançam quando mudam.
+ */
+private val Tipografia: Typography = Typography().let { t ->
+    fun TextStyle.tab() = copy(fontFeatureSettings = "tnum")
+    t.copy(
+        displayLarge = t.displayLarge.tab(), displayMedium = t.displayMedium.tab(), displaySmall = t.displaySmall.tab(),
+        headlineLarge = t.headlineLarge.tab(), headlineMedium = t.headlineMedium.tab(), headlineSmall = t.headlineSmall.tab(),
+        titleLarge = t.titleLarge.tab(), titleMedium = t.titleMedium.tab(), titleSmall = t.titleSmall.tab(),
+        bodyLarge = t.bodyLarge.tab(), bodyMedium = t.bodyMedium.tab(), bodySmall = t.bodySmall.tab(),
+        labelLarge = t.labelLarge.tab(), labelMedium = t.labelMedium.tab(), labelSmall = t.labelSmall.tab(),
+    )
+}
+
+/** Cantos mais redondos que o normal do Material: cartões a 20 dp. */
+private val Formas = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(32.dp),
+)
+
 @Composable
 fun ObraTheme(
     escuro: Boolean = isSystemInDarkTheme(),
@@ -209,6 +238,8 @@ fun ObraTheme(
     CompositionLocalProvider(LocalViz provides if (escuro) VizEscuro else VizClaro) {
         MaterialTheme(
             colorScheme = if (escuro) EsquemaEscuro else EsquemaClaro,
+            typography = Tipografia,
+            shapes = Formas,
             content = content,
         )
     }

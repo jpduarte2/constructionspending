@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.EventRepeat
@@ -192,26 +193,28 @@ fun DespesasScreen(
                 visiveis.groupBy { YearMonth.from(it.data) }.forEach { (mes, doMes) ->
                     item(key = "cab-$mes") {
                         Row(
-                            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 6.dp),
+                            verticalAlignment = Alignment.Bottom,
                         ) {
-                            Text(
-                                mes.texto(),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.weight(1f),
-                            )
+                            Column(Modifier.weight(1f)) {
+                                Text(mes.texto(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text(
+                                    plural(doMes.size, "despesa", "despesas"),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                             Text(
                                 doMes.sumOf { it.valorCent }.emEuros().eurCurto(),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
                             )
                         }
                     }
                     items(doMes, key = { it.id }) { d ->
                         LinhaDespesa(d, slotRubrica(d.rubrica, todas), onClick = { onEditar(d.id) })
                         HorizontalDivider(
-                            modifier = Modifier.padding(start = 16.dp),
+                            modifier = Modifier.padding(start = 72.dp),
                             color = MaterialTheme.colorScheme.outlineVariant,
                         )
                     }
@@ -224,43 +227,45 @@ fun DespesasScreen(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CartaoResumoDespesas(r: ResumoDespesas, filtro: String?, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-    ) {
-        Column(Modifier.padding(20.dp)) {
-            Text(
-                if (filtro == null) "Custo real das despesas" else "Custo real · $filtro",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                r.custoReal.eur(),
-                fontSize = 34.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Spacer(Modifier.height(10.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Indicador("Total pago", r.total.eurCurto())
-                if (r.capital > 0) Indicador("Capital amortizado", r.capital.eurCurto())
-                Indicador("Despesas", r.n.toString())
-            }
-            if (r.capital > 0) {
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "O capital amortizado não é custo: é o empréstimo que pagou a obra a ser devolvido. " +
-                        "Por isso fica fora do custo real.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+    CartaoDestaque(modifier) {
+        Text(
+            if (filtro == null) "Custo real das despesas" else "Custo real · $filtro",
+            style = MaterialTheme.typography.labelLarge,
+            color = corNoDestaqueSuave,
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            r.custoReal.eur(),
+            fontSize = 36.sp,
+            fontWeight = FontWeight.Bold,
+            color = corNoDestaque,
+        )
+        Spacer(Modifier.height(12.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            DadoDestaque("Total pago", r.total.eurCurto())
+            if (r.capital > 0) DadoDestaque("Capital amortizado", r.capital.eurCurto())
+            DadoDestaque("Despesas", r.n.toString())
         }
+        if (r.capital > 0) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "O capital amortizado não é custo: é o empréstimo que pagou a obra a ser devolvido. " +
+                    "Por isso fica fora do custo real.",
+                style = MaterialTheme.typography.bodySmall,
+                color = corNoDestaqueSuave,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DadoDestaque(rotulo: String, valor: String) {
+    Column {
+        Text(rotulo, style = MaterialTheme.typography.labelSmall, color = corNoDestaqueSuave)
+        Text(valor, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = corNoDestaque)
     }
 }
 
@@ -274,12 +279,13 @@ private fun LinhaDespesa(d: Despesa, slot: Int, onClick: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(10.dp).clip(CircleShape).background(viz.series[slot % viz.series.size]))
-        Spacer(Modifier.width(12.dp))
+        IconeCategoria(d.rubrica, viz.series[slot % viz.series.size])
+        Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 d.descricao.ifBlank { d.rubrica },
                 style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -305,20 +311,23 @@ private fun LinhaDespesa(d: Despesa, slot: Int, onClick: () -> Unit) {
             Text(
                 buildString {
                     append(d.rubrica).append(" · ").append(d.data.textoCurto())
-                    if (d.fixaId != null) append(" · recorrente")
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (d.fixaId != null) {
+                Spacer(Modifier.height(4.dp))
+                Selo("recorrente", viz.magnitude)
+            }
         }
         Spacer(Modifier.width(12.dp))
         Column(horizontalAlignment = Alignment.End) {
             Text(
                 d.valorCent.emEuros().eur(),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             if (d.capitalCent > 0) {
@@ -366,18 +375,10 @@ private fun AvisoPorConfirmar(n: Int, ativo: Boolean, aoTocar: () -> Unit, modif
 
 @Composable
 private fun EstadoVazioDespesas() {
-    Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            "Ainda não há despesas",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            "Regista aqui o que a casa custa sem ser obra: prestações e comissões do banco, " +
-                "seguros, água, luz, impostos. Ficam à parte do custo da construção.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    EstadoVazioIlustrado(
+        icone = Icons.Outlined.AccountBalance,
+        titulo = "Ainda não há despesas",
+        texto = "Regista aqui o que a casa custa sem ser obra: prestações e comissões do banco, " +
+            "seguros, água, luz, impostos. Ficam à parte do custo da construção.",
+    )
 }
